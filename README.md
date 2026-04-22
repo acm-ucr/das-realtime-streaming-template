@@ -1,1 +1,0 @@
-# das-realtime-streaming-template
