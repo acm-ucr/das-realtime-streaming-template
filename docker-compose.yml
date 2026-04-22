@@ -1,0 +1,47 @@
+services:
+  redpanda:
+    image: docker.redpanda.com/redpandadata/redpanda:latest
+    command: ["redpanda", "start", "--smp", "1", "--overprovisioned", "--kafka-addr", "internal://0.0.0.0:9092,external://0.0.0.0:19092", "--advertise-kafka-addr", "internal://redpanda:9092,external://localhost:19092"]
+    ports:
+      - "19092:19092"
+
+  console:
+    image: docker.redpanda.com/redpandadata/console:latest
+    environment:
+      KAFKA_BROKERS: "redpanda:9092"
+    ports:
+      - "8080:8080"
+    depends_on:
+      - redpanda
+
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${DB_USER}
+      POSTGRES_PASSWORD: ${DB_PASS}
+      POSTGRES_DB: ${DB_NAME}
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+
+  ingestion:
+    build: ./ingestion
+    env_file: .env
+    depends_on:
+      - redpanda
+
+  processing:
+    build: ./processing
+    env_file: .env
+    depends_on:
+      - redpanda
+      - postgres
+
+  dashboard:
+    build: ./dashboard
+    env_file: .env
+    ports:
+      - "8501:8501"
+    depends_on:
+      - postgres
